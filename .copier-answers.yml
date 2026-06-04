@@ -1,0 +1,9 @@
+# Changes here will be overwritten by Copier
+_commit: ccb8929
+_src_path: https://github.com/cagov/caldata-infrastructure-template
+dbt_profile_name: caldata_legislation_tracker
+email_address: ian.rose@innovation.ca.gov
+friendly_project_name: CalData Legislation Tracker
+license: MIT
+project_name: caldata-legislation-tracker
+team_name: CalData

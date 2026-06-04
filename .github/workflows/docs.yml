@@ -1,0 +1,38 @@
+name: docs
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+env:
+  DBT_PROFILES_DIR: transform/ci
+
+  DBT_RAW_DB: RAW_PRD
+  DBT_ANALYTICS_DB: ANALYTICS_PRD
+  SNOWFLAKE_PRIVATE_KEY: ${{ SECRETS.SNOWFLAKE_PRIVATE_KEY_PRD }}
+  SNOWFLAKE_USER: ${{ SECRETS.SNOWFLAKE_USER_PRD }}
+  SNOWFLAKE_ACCOUNT: ${{ SECRETS.SNOWFLAKE_ACCOUNT }}
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+      - name: Build dbt docs
+        run: |
+          uv run dbt deps --project-dir=transform
+          uv run dbt docs generate --project-dir=transform --target=prd
+          cp -r transform/target docs/dbt_docs
+      - name: Deploy docs to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        run: uv run mkdocs gh-deploy --force

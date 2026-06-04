@@ -1,0 +1,20 @@
+[project]
+name = "caldata-legislation-tracker"
+version = "0.1.0"
+description = "CalData Legislation Tracker"
+authors = ["CalData <ian.rose@innovation.ca.gov>"]
+license = "MIT"
+readme = "README.md"
+requires-python = "==3.13.*"
+dependencies = [
+    "dbt-core~=1.10",
+    "dbt-snowflake~=1.10",
+    "mkdocs-material~=9.6.14",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "sqlfluff>=3.4.1",
+    "sqlfluff-templater-dbt>=3.4.1",
+]
