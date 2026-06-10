@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# uv
+# (uv.lock IS committed; the virtualenv is not)
+
+# Databricks
+.databricks/
+*.pyc
+
+# Databricks AI dev kit + Claude Code — treated as per-developer local tooling
+# (each dev runs the installer; see docs/setup.md). Not committed: the MCP config
+# and settings.json embed machine-specific absolute paths, and skills are
+# installer-managed. A hand-authored .claude/CLAUDE.md, if added, is NOT ignored.
+.ai-dev-kit/
+.mcp.json
+.claude/skills/
+.claude/settings.json
+.claude/settings.local.json
+
+# mkdocs build output
+/site/
+
+# prettier (pre-commit) cache
+node_modules/
+
+# Editor swap files
+*.swp
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Source data must never be committed (bulk CA leginfo exports)
+pubinfo*/
+**/*.lob
