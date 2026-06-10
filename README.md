@@ -46,9 +46,9 @@ databricks bundle deploy -t dev
 
 ## AI dev kit
 
-This repo is wired for the [Databricks AI dev kit](https://github.com/databricks-solutions/ai-dev-kit):
-`.claude/skills/` and `.mcp.json` give Claude Code access to Databricks skills and an MCP server
-exposing Databricks tools. See [docs/setup.md](docs/setup.md).
+This repo uses the [Databricks AI dev kit](https://github.com/databricks-solutions/ai-dev-kit) to
+give Claude Code Databricks skills and an MCP server. It's per-developer local tooling — each
+person runs the installer once (its generated files are git-ignored). See [docs/setup.md](docs/setup.md).
 
 ## License
 

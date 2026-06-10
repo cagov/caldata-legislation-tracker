@@ -115,8 +115,9 @@ set up.
 
 ## 5. Databricks AI dev kit
 
-Install the [AI dev kit](https://github.com/databricks-solutions/ai-dev-kit) scoped to this
-project so Claude Code gets Databricks skills and an MCP server:
+The AI dev kit is **per-developer local tooling — each person runs the installer once**; its
+generated files are not committed. Install it scoped to this project so Claude Code gets Databricks
+skills and an MCP server:
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/databricks-solutions/ai-dev-kit/main/install.sh) \
@@ -125,8 +126,10 @@ bash <(curl -sL https://raw.githubusercontent.com/databricks-solutions/ai-dev-ki
   --profile legislation
 ```
 
-This creates `.claude/skills/` and `.mcp.json` (committed, team-shared) plus a local
-`.ai-dev-kit/` state directory (git-ignored).
+This generates `.mcp.json`, `.claude/skills/`, and a local `.ai-dev-kit/` state directory — all
+**git-ignored**. `.mcp.json` is intentionally not committed because it embeds a machine-specific
+path to the MCP server in your home directory; the skills are installer-managed, so the installer
+(not the repo) is their source of truth. Re-run the command to update skills or repoint the profile.
 
 ## 6. Adding teammates
 

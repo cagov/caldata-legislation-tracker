@@ -11,8 +11,14 @@ __pycache__/
 .databricks/
 *.pyc
 
-# Databricks AI dev kit — local state/venv; skills + .mcp.json ARE committed
+# Databricks AI dev kit + Claude Code — treated as per-developer local tooling
+# (each dev runs the installer; see docs/setup.md). Not committed because the MCP
+# config embeds a machine-specific absolute path and the skills are installer-managed.
+# A project-shared .claude/settings.json or CLAUDE.md, if added, is NOT ignored.
 .ai-dev-kit/
+.mcp.json
+.claude/skills/
+.claude/settings.local.json
 
 # mkdocs build output
 /site/
@@ -26,8 +32,7 @@ node_modules/
 # Editor / OS
 .DS_Store
 .idea/
-.vscode/*
-!.vscode/mcp.json
+.vscode/
 
 # Source data must never be committed (bulk CA leginfo exports)
 pubinfo*/
