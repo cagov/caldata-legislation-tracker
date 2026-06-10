@@ -7,7 +7,7 @@ Secondary objective: develop best practices for working with claude code and dat
 
 ---
 ## Tech Stack
-Work in databricks, claude code, github, and the databricks-ai-devkit. 
+Work in databricks, claude code, github, and the databricks-ai-devkit.
 
 ---
 
@@ -23,8 +23,8 @@ Work in databricks, claude code, github, and the databricks-ai-devkit.
 ## Code style
 
 Prefer code that is expressive, succinct, explicit, and legible.
-Do not over-engineer. Avoid premature abstraction. 
-Flag dead code for the human. 
+Do not over-engineer. Avoid premature abstraction.
+Flag dead code for the human.
 
 
 Comment in code to explain *why*, never *what*. Comments should be evergreen, self-explanatory. If something is important, put it in the comment text directly.
@@ -33,7 +33,7 @@ Comment in code to explain *why*, never *what*. Comments should be evergreen, se
 This project uses pre-commit hooks for linting/formatting
 After editing files, run uv run pre-commit run --files <edited files> as a courtesy
 Fix any issues reported before considering the task done
-When adding a new behavior, ask the human if a test should be written first. 
+When adding a new behavior, ask the human if a test should be written first.
 Avoid silent failures. Exceptions should be raised explicitly unless otherwise instructed. Do not hide failures with dummy values unless specifically told to. Try/except blocks should be used sparingly and catch specific cases.
 
 **Write less code, not more.** Default to the smallest implementation that solves the problem.
@@ -60,4 +60,3 @@ A series of decisions that should be added to this doc once a convention is deci
 - Testing: local only? there are also some databricks cloud options it seems
 - Architecture. We should probably write out the architecture somewhere. (e.g medallion, roles based permissions, etc. )
 - Do we put linting conventions here, or do we rely on traditional linters? (I think the latter, b/c the bot can infer those from the repo?)
-
