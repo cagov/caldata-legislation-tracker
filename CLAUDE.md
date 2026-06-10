@@ -1,7 +1,5 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
 Build a tracker for pending legislation and regulations in California that involve data or technology.
@@ -9,26 +7,34 @@ Secondary objective: develop best practices for working with claude code and dat
 
 ---
 ## Tech Stack
-Work in databricks, claude code, github. 
+Work in databricks, claude code, github, and the databricks-ai-devkit. 
 
 ---
 
 ## Red Lines — Never Do These
 
-- **Never `git commit` without explicit human permission**
-- **Never `git push` without explicit human permission**
+- **Never `git commit` or `git push`. Kindly remind the human to make their own commits. It is okay for you to use read-only git commands.**
 - **Never deploy to a production target without explicit confirmation**
 - **Never drop, truncate, or overwrite production data EVER (you should only edit the DEV environment)**
+- **If you can see a secret or confidential data, notify the human immediately.**
 
 ---
 
-## Working with Humans
+## Code style
 
-**Default to plan mode.** Before writing any code (except single-line fixes), enter plan mode and get approval on the approach. Build only what was agreed in the plan.
+Prefer code that is expressive, succinct, explicit, and legible.
+Do not over-engineer. Avoid premature abstracation. 
+Flag dead code for the human. 
 
-**Write PRs that are easy to review.** Keep PRs small and focused on one thing. In the PR description, explain *why* the change exists — not what the diff shows. In code comments, describe *why*, never *what*.
 
-**Use tests as your feedback loop.** Before marking any task done, run the relevant tests and confirm they pass. When adding new behavior, ask the human if a test should be written first. A passing test suite is the definition of done.
+**Comment in code to explain *why*, never *what*. Comments should be evergreen, self-explanatory. If something is important, put it in the comment text directly. 
+
+## Testing
+This project uses pre-commit hooks for linting/formatting
+After editing files, run uv run pre-commit run --files <edited files> as a courtesy
+Fix any issues reported before considering the task done
+When adding a new behavior, ask the human if a test should be written first. 
+Avoid silent failures. Exceptions should be raised explicitly unless otherwise instructed. Do not hide failures with dummy values unless specifically told to. Try/except blocks should be used sparingly and catch specific cases.
 
 **Write less code, not more.** Default to the smallest implementation that solves the problem.
 
