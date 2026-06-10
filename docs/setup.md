@@ -174,20 +174,40 @@ natural contents of a future Terraform IaC layer.
 
 ## Managing access (admin)
 
-Adding teammates is click-ops friendly and group-based:
+No Entra group is required. This workspace's default catalog `caldata_legislation_tracker` is owned
+by the workspace-admins group, and Databricks already grants **`USE CATALOG`** on it to **all
+workspace users** — so access is mostly automatic. Onboarding is two steps.
 
-1. **Add the person to Microsoft Entra ID** (your org's directory) if they aren't already.
-2. In the workspace, go to **Settings → Identity and access** and add the user — or, better, an
-   Entra **group** such as `legislation-developers`. (Automatic identity management lets a
-   workspace admin search Entra directly; no SCIM setup needed.)
-3. **Grant the group Unity Catalog privileges** on the `caldata_legislation_tracker` catalog once —
-   in Catalog Explorer or via SQL:
+### One-time: grant working privileges to all workspace users
 
-   ```sql
-   GRANT USE CATALOG ON CATALOG caldata_legislation_tracker TO `legislation-developers`;
-   GRANT USE SCHEMA, SELECT ON CATALOG caldata_legislation_tracker TO `legislation-developers`;
-   GRANT CREATE SCHEMA ON CATALOG caldata_legislation_tracker TO `legislation-developers`;  -- for developers
-   ```
+A workspace admin runs this once (in a SQL editor or notebook), so every current and future member
+can build. `USE CATALOG` is already granted; this adds read + create/modify:
 
-After that, onboarding a new teammate is just adding them to the group. Serverless compute means
-there are no cluster permissions to hand out — new users can run SQL and notebooks immediately.
+```sql
+-- Simplest for a single-purpose demo workspace — everyone is a builder:
+GRANT ALL PRIVILEGES ON CATALOG caldata_legislation_tracker TO `account users`;
+```
+
+For tiered least-privilege instead:
+
+```sql
+-- Read-only:
+GRANT USE SCHEMA, SELECT ON CATALOG caldata_legislation_tracker TO `account users`;
+-- Developer extras (pipelines, volumes):
+GRANT MODIFY, CREATE TABLE, CREATE MATERIALIZED VIEW, CREATE VOLUME, READ VOLUME, WRITE VOLUME
+  ON CATALOG caldata_legislation_tracker TO `account users`;
+```
+
+`account users` is safe here: the **workspace–catalog binding** means only people assigned to this
+workspace can use the catalog, even though the group is account-wide.
+
+### Per new developer: add them to the workspace
+
+That's the only recurring step — they inherit the grants above, and serverless compute means no
+cluster permissions to hand out.
+
+1. In the workspace, open **Settings → Identity and access → Users → Add user** and enter their
+   email. They must exist in your Microsoft **Entra** tenant. If they're not yet in the Databricks
+   *account* and you're not an account admin, an account admin adds them to the account once; then
+   you assign them to the workspace. (Workspace admin ≠ account admin — the one boundary you may hit.)
+2. New workspace users get **Workspace access** and **Databricks SQL access** by default.
