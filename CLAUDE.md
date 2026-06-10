@@ -23,11 +23,11 @@ Work in databricks, claude code, github, and the databricks-ai-devkit.
 ## Code style
 
 Prefer code that is expressive, succinct, explicit, and legible.
-Do not over-engineer. Avoid premature abstracation. 
+Do not over-engineer. Avoid premature abstraction. 
 Flag dead code for the human. 
 
 
-**Comment in code to explain *why*, never *what*. Comments should be evergreen, self-explanatory. If something is important, put it in the comment text directly. 
+Comment in code to explain *why*, never *what*. Comments should be evergreen, self-explanatory. If something is important, put it in the comment text directly.
 
 ## Testing
 This project uses pre-commit hooks for linting/formatting
@@ -55,8 +55,8 @@ uv run pytest -k <test_name>     # single test
 
 ## TODO (HUMANS)
 A series of decisions that should be added to this doc once a convention is decided:
-- Deployment: databicks assetg bundles? CLI workspace?
+- Deployment: Databricks asset bundles? CLI workspace?
 - Testing: local only? there are also some databricks cloud options it seems
 - Architecture. We should probably write out the architecture somewhere. (e.g medallion, roles based permissions, etc. )
-- Do we put linting convensions here, or do we rely on traditional linters? (I think the latter, b/c the bot can infer those from the repo?)
+- Do we put linting conventions here, or do we rely on traditional linters? (I think the latter, b/c the bot can infer those from the repo?)
 
