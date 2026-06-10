@@ -1,7 +1,7 @@
 # California Legislative Information (leginfo) Bulk Download — Technical Reference
 
 **Source:** https://downloads.leginfo.legislature.ca.gov
-**Maintainer:** California Office of Legislative Counsel
+**Maintainer:** Legislative Counsel of California (official leginfo system)
 **Access:** Plain HTTPS, no auth, no API key. Apache directory index.
 **Verified:** 2026-06-10
 
@@ -26,7 +26,7 @@ Each zip contains:
 - **`*.lob` files** — one file per large-object record (full bill text, bill analyses, law section text). Referenced by row in the corresponding `.dat` file. Bill version text LOBs are XML.
 - The schema is defined in `capublic.sql` (in `pubinfo_load.zip`), targeting MySQL with a database named `capublic`.
 
-## 3. Tables (17)
+## 3. Tables (18, per the loader SQL files in `pubinfo_load.zip`)
 
 **Bill data:**
 - `BILL_TBL` — one row per measure (bill ID, session, type, status, current location)
@@ -64,7 +64,7 @@ Note: law/code tables appear only in the weekly session zip, not the `pubinfo_da
 - Files post ~21:20 Pacific daily; don't schedule pulls earlier.
 - `.dat` files are tab-delimited with embedded LOB filename references — not CSV; quoting rules differ.
 - Bill text XML uses Legislative Counsel's schema (caml namespace); strikeout/italic amendment markup is encoded in tags and matters for "as amended" readings.
-- Pre-1999 data exists in the archives but the modern leginfo website only covers 1999+; the zips are the only official bulk source for older sessions.
+- Pre-1999 data exists in these archives; the modern leginfo website only covers 1999+ (older measures live at the legacy leginfo.ca.gov archive). These zips are the primary official bulk source for older sessions.
 - Loader scripts are Windows .BAT samples only; treat as documentation, not production tooling.
 
 ## 6. Alternatives Considered
@@ -72,3 +72,17 @@ Note: law/code tables appear only in the weekly session zip, not the `pubinfo_da
 - **LegiScan** (legiscan.com/CA/datasets): JSON/CSV/XML, cleaner API, but third-party and rate/licensing constraints.
 - **leginfo.legislature.ca.gov website**: search UI only, no bulk export.
 - The official zips are authoritative and free; preferred for full-corpus work.
+
+## 7. Acceptance Criteria Mapping
+
+| Criterion | Status |
+|---|---|
+| `.md` files (for Claude to read) exist and are reviewable | This file. It gives Claude everything needed to reason about and operate on the dataset: source URL, file inventory, schema, formats, ingestion steps. |
+| Human-audience summary exists and is reviewable | `ca-leginfo-summary.md` (companion file). |
+| Bulk download executed | **Not done here** — the working sandbox has no outbound network for file downloads, and the session zip is ~930 MB. The pipeline in §4 is ready to run on any networked machine. |
+
+## 8. Verification Sources
+
+- Live directory index at https://downloads.leginfo.legislature.ca.gov (fetched 2026-06-10): file names, sizes, last-modified timestamps.
+- `pubinfo_Readme.pdf` (official, dated 2021-05-21, fetched 2026-06-10): file descriptions, table/loader inventory, weekly/daily update process.
+- Statements not directly verifiable from those two sources (e.g., caml XML markup details) are based on prior knowledge of the dataset and should be spot-checked against an actual `.lob` file during implementation.
