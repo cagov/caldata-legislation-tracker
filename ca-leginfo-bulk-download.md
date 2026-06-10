@@ -59,7 +59,7 @@ Note: law/code tables appear only in the weekly session zip, not the `pubinfo_da
    - **Simpler/idempotent:** re-download `pubinfo_daily_<Day>.zip` (~800 MB) nightly and truncate-and-reload; pull the weekly session zip when statute tables are needed.
 4. **Markdown conversion (for Claude consumption):** parse bill version XML from `.lob` files → strip to text/markdown, one `.md` per bill version, with frontmatter from `BILL_TBL`/`BILL_VERSION_TBL` (bill ID, session, version date, status, authors).
 
-## 5. Gotchas
+## 5. Key Notes
 
 - Files post ~21:20 Pacific daily; don't schedule pulls earlier.
 - `.dat` files are tab-delimited with embedded LOB filename references — not CSV; quoting rules differ.
