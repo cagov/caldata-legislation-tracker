@@ -1,0 +1,46 @@
+default_language_version:
+  python: python3.13
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        args:
+          - --unsafe
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        types: [yaml]
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        args: []
+  # Python and SQL linters run as local hooks via `uv run` so they share the
+  # project's locked environment (more predictable than pre-commit-managed envs).
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+        entry: uv run ruff check --fix
+      - id: ruff-format
+        name: ruff format
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+        entry: uv run ruff format
+      - id: sqlfluff
+        name: sqlfluff
+        language: system
+        description: "Lints SQL files with SQLFluff"
+        types: [sql]
+        require_serial: true
+        entry: uv run sqlfluff fix --show-lint-violations --nocolor --disable-progress-bar

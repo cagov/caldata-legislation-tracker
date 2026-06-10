@@ -1,0 +1,22 @@
+name: bundle-validate
+on:
+  pull_request:
+
+# Validates the Databricks Asset Bundle configuration on every PR.
+#
+# Requires repository secrets DATABRICKS_HOST and DATABRICKS_TOKEN (or OIDC
+# federation) so the CLI can resolve the target. Until those are configured this
+# job will fail — it's safe to leave it as the demo's only "deploy-adjacent" check;
+# service-principal / OIDC deploy is deferred (see docs).
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+      - name: Validate bundle
+        run: databricks bundle validate -t dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}

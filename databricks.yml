@@ -1,0 +1,40 @@
+# Databricks Asset Bundle for the CalData Legislation Tracker.
+# Docs: https://docs.databricks.com/dev-tools/bundles
+#
+# This bundle is the project's "infrastructure-as-code lite": it defines the
+# Lakeflow Declarative Pipeline and the orchestrating Job as source files that
+# `databricks bundle deploy` provisions into the workspace.
+bundle:
+  name: caldata_legislation_tracker
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog holding the bronze/silver/gold schemas.
+    # Reuse the workspace's auto-provisioned managed catalog (named after the
+    # workspace) rather than creating a separate one — it already has managed
+    # storage, so it avoids the Default Storage catalog-creation limitation.
+    default: caldata_legislation_tracker
+
+targets:
+  # Default target. `mode: development` prefixes deployed resource names with your
+  # username so multiple developers can deploy to the same workspace without
+  # colliding, and pauses schedules/triggers.
+  dev:
+    mode: development
+    default: true
+    # Host is pinned so the CLI auto-selects whichever local profile points at this
+    # workspace — teammates can name their profile anything (run
+    # `databricks auth login --host <this-host>`).
+    workspace:
+      host: https://adb-7405607841560793.13.azuredatabricks.net
+
+  prod:
+    mode: production
+    # Single demo workspace for now, so prod targets the same host (prod mode just
+    # doesn't prefix resource names). Split this out + deploy as a service principal
+    # when there's a real prod workspace (future work).
+    workspace:
+      host: https://adb-7405607841560793.13.azuredatabricks.net

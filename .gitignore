@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# uv
+# (uv.lock IS committed; the virtualenv is not)
+
+# Databricks
+.databricks/
+*.pyc
+
+# Databricks AI dev kit — local state/venv; skills + .mcp.json ARE committed
+.ai-dev-kit/
+
+# mkdocs build output
+/site/
+
+# prettier (pre-commit) cache
+node_modules/
+
+# Editor swap files
+*.swp
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/mcp.json
+
+# Source data must never be committed (bulk CA leginfo exports)
+pubinfo*/
+**/*.lob

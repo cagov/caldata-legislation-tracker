@@ -1,0 +1,21 @@
+site_name: CalData Legislation Tracker
+site_description: Tracking California legislation and regulation on Azure Databricks
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.instant
+  palette:
+    primary: indigo
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Introduction: index.md
+  - Setup: setup.md
