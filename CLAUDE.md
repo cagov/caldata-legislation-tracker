@@ -43,6 +43,7 @@ Avoid silent failures. Exceptions should be raised explicitly unless otherwise i
 ## Common Commands
 
 All Python tooling uses [uv](https://docs.astral.sh/uv/).
+Never invoke `pip` directly — use `uv add <package>` to add dependencies (or `uv add --dev <package>` for dev deps)
 
 ```bash
 uv run ruff check --fix          # lint
