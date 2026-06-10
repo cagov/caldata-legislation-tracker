@@ -12,12 +12,13 @@ __pycache__/
 *.pyc
 
 # Databricks AI dev kit + Claude Code — treated as per-developer local tooling
-# (each dev runs the installer; see docs/setup.md). Not committed because the MCP
-# config embeds a machine-specific absolute path and the skills are installer-managed.
-# A project-shared .claude/settings.json or CLAUDE.md, if added, is NOT ignored.
+# (each dev runs the installer; see docs/setup.md). Not committed: the MCP config
+# and settings.json embed machine-specific absolute paths, and skills are
+# installer-managed. A hand-authored .claude/CLAUDE.md, if added, is NOT ignored.
 .ai-dev-kit/
 .mcp.json
 .claude/skills/
+.claude/settings.json
 .claude/settings.local.json
 
 # mkdocs build output
