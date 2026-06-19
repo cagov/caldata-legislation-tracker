@@ -53,6 +53,29 @@ publish → gold     business-level marts for analysis & reporting
 Compute is **serverless** — no clusters to manage. The bundle deploys via
 `databricks bundle deploy`; classic ("hybrid") compute is a small YAML change if ever needed.
 
+
+## Documentation
+
+All pipeline SQL files should document tables and columns inline using `COMMENT` clauses,
+which feed the Unity Catalogue.
+Strive to have complete documentation for the gold layer,
+and document bronze/silver when column names are not intuitive,
+or contain hidden assumptions/gotchas.
+Try to capture human subject-matter expertise in these comments,
+don't just let coding assistants make it up.
+
+For example:
+
+```sql
+ CREATE OR REFRESH MATERIALIZED VIEW gold.bills
+ COMMENT 'Active California bills involving data or technology'
+ (
+   bill_id COMMENT 'Unique identifier — e.g. AB-1234 or SB-567',
+   status  COMMENT 'Current stage in the legislative process'
+ )
+ AS SELECT ...
+```
+
 ## Source data
 
 California's legislature publishes weekly public-information dumps at
