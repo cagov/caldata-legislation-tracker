@@ -7,7 +7,26 @@ Secondary objective: develop best practices for working with claude code and dat
 
 ---
 ## Tech Stack
-Work in databricks, claude code, github, and the databricks-ai-devkit. 
+
+This is a learning project to explore both claude code and databricks. 
+Follow these principles when building
+- Open
+- Modular
+- Interoperable
+- Non-coder friendly
+- Governed
+- Platform is all Infrastructure as Code
+
+To that end, lean toward using these parts of the databricks stack. 
+- Iceberg for storage
+- Data Asset Bundles for IaC
+- Unity Catalog for governance (use this to its fullest so we can test it)
+- Lakeflow Jobs and Lakeflow Spark Declarative Pipelines for modular, medallion style transformations
+- Semantic Layer with Unity Catalog Business Semantics and Metric Views
+
+
+Finally, use components that are building blocks for agent-data interfaces (e.g. the databricks-ai-devkit). 
+
 
 ---
 
