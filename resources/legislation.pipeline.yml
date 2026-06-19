@@ -1,0 +1,26 @@
+# Lakeflow Declarative Pipeline: the ingest -> transform -> publish (bronze ->
+# silver -> gold) medallion flow. Serverless so there are no clusters to manage.
+#
+# Source files are picked up by the globs below. Tables are written to the
+# bronze/silver/gold schemas by fully qualifying their names in the SQL, e.g.
+#   CREATE OR REFRESH STREAMING TABLE bronze.bill_raw ...
+#   CREATE OR REFRESH MATERIALIZED VIEW silver.bill ...
+# At bootstrap there are no SQL files yet, only placeholder READMEs.
+resources:
+  pipelines:
+    legislation_pipeline:
+      name: legislation_pipeline
+      catalog: ${var.catalog}
+      schema: silver # default schema for unqualified tables
+      serverless: true
+      channel: CURRENT
+      # Glob includes must be directory-recursive (`**`); a `*.sql` suffix filter is
+      # not supported. Lakeflow loads .sql/.py source files and ignores others
+      # (e.g. the placeholder README.md files).
+      libraries:
+        - glob:
+            include: ../src/ingest/**
+        - glob:
+            include: ../src/transform/**
+        - glob:
+            include: ../src/publish/**
