@@ -1,0 +1,17 @@
+---
+extends: default
+
+ignore: |
+  .ai-dev-kit/
+  site/
+
+rules:
+  line-length:
+    max: 120
+  document-start: disable
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false # allow GitHub Actions `on:` keys
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable

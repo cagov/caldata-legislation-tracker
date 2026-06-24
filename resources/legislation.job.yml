@@ -1,0 +1,16 @@
+# Job that orchestrates the pipeline. Schedulable wrapper around the Lakeflow
+# pipeline; a future `land_raw` task (download the CA leginfo public dump into a
+# Unity Catalog volume) will run before the pipeline task once ingestion is built.
+resources:
+  jobs:
+    legislation_job:
+      name: legislation_job
+      tasks:
+        - task_key: run_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.legislation_pipeline.id}
+      # Add a schedule when the pipeline is ready, e.g.:
+      # trigger:
+      #   periodic:
+      #     interval: 1
+      #     unit: DAYS

@@ -1,0 +1,12 @@
+[sqlfluff]
+# Lakeflow Declarative Pipelines are authored in Databricks SQL. These are plain
+# SQL files (no dbt/Jinja), so use the raw templater.
+dialect = databricks
+templater = raw
+max_line_length = 120
+
+[sqlfluff:indentation]
+tab_space_size = 4
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = upper

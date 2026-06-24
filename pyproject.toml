@@ -1,0 +1,32 @@
+[project]
+name = "caldata-legislation-tracker"
+version = "0.1.0"
+description = "CalData Legislation Tracker — tracking California legislation and regulation on Azure Databricks"
+authors = [{ name = "CalData", email = "ian.rose@innovation.ca.gov" }]
+license = "MIT"
+readme = "README.md"
+requires-python = "==3.13.*"
+dependencies = [
+    "databricks-sdk>=0.30",
+    "mkdocs-material~=9.6",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "ruff>=0.11",
+    "sqlfluff>=3.4.1",
+]
+
+# This is a Databricks Asset Bundle project, not an installable Python package,
+# so uv should not try to build it.
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+extend-select = ["I"]  # isort-style import sorting
