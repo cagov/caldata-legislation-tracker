@@ -8,7 +8,7 @@ Secondary objective: develop best practices for working with claude code and dat
 ---
 ## Tech Stack
 
-This is a learning project to explore both claude code and databricks. 
+This is a learning project to explore both claude code and databricks.
 Follow these principles when building
 - Open
 - Modular
@@ -24,7 +24,6 @@ To that end, lean toward using these parts of the databricks stack.
 - **Lakeflow Jobs and Lakeflow Spark Declarative Pipelines** for modular, medallion-style transformations (bronze → silver → gold)
 - **Semantic Layer** via Unity Catalog Metric Views and Genie — note that Metric Views and Genie Spaces are not yet native DAB resource types, so they require SDK scripts or MCP provisioning outside the bundle (known gap)
 - **Inline SQL `COMMENT` clauses** for data documentation — declared in pipeline `.sql` files, stored in Unity Catalog, and consumed by Genie. Document gold layer always; bronze when raw field names are cryptic; silver is optional. Comments do not inherit across layers — each table must be documented explicitly.
-
 Finally, use components that are building blocks for agent-data interfaces (e.g. the databricks-ai-devkit).
 
 ---
