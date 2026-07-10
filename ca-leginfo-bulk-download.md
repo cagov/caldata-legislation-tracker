@@ -11,7 +11,7 @@
 |---|---|---|---|
 | `pubinfo_YYYY.zip` (1989–2025, odd years = session start) | Full data for one 2-year legislative session | 16 MB (1989) → 1.2 GB (2023); 2025 currently 930 MB | Historical sessions frozen; current session zip refreshed weekly (Sundays) |
 | `pubinfo_Mon.zip` … `pubinfo_Sat.zip` | Incremental: only records new/changed since the previous day's extract | 0.3–7 MB | Daily ~21:20 PT |
-| `pubinfo_daily_Mon.zip` … `pubinfo_daily_Sun.zip` | Full snapshot of current session data, excluding code (statute) tables | ~800 MB | Daily ~21:22 PT |
+| `pubinfo_daily_Mon.zip` … `pubinfo_daily_Sun.zip` | Full snapshot of current-session non-code data; excludes code/statute tables | ~800 MB | Daily ~21:22 PT |
 | `pubinfo_load.zip` | Loader kit: `capublic.sql` (schema), `loadData.bat`, `create_capublic.bat`, `truncateAll.sql`, `cleanup.bat`, table lists | 15 KB | Static (last updated 2021) |
 | `pubinfo_Readme.pdf` / `.txt` | Official setup instructions | 362 KB | Static |
 | `pubinfo_News.pdf` / `.txt` | Announcements | 85 KB | Static |
@@ -48,16 +48,17 @@ Each zip contains:
 - `LOCATION_CODE_TBL` — committee/desk location codes
 - `COMMITTEE_HEARING_TBL`, `COMMITTEE_AGENDA_TBL`, `DAILY_FILE_TBL` — scheduling
 
-Note: law/code tables appear only in the weekly session zip, not the `pubinfo_daily_*` snapshots.
+Note: law/code tables appear only in the weekly session zip, not the `pubinfo_daily_*` snapshots. The daily snapshot is therefore a replacement for current-session bill, vote, author, history, analysis, veto, roster, location, committee, agenda, and daily-file tables, but not for `CODES_TBL`, `LAW_TOC_TBL`, `LAW_TOC_SECTIONS_TBL`, or `LAW_SECTION_TBL`.
 
 ## 4. Recommended Ingestion Pipeline
 
-1. **Bootstrap:** download `pubinfo_load.zip`; use `capublic.sql` as the authoritative schema (port to Postgres/SQLite as needed — types are simple: varchar, date, LOB pointers).
-2. **Initial load:** download `pubinfo_2025.zip` (current session, ~930 MB) and any needed historical session zips. Unzip; bulk-load each `.dat` (tab-delimited, `LOAD DATA INFILE` or equivalent); resolve `.lob` references for full text.
-3. **Stay current (pick one):**
-   - **Low bandwidth:** apply the small `pubinfo_<Day>.zip` incrementals Mon–Sat; reload the full session zip on Sundays (official process per Readme: delete session data, reload `pubinfo_YYYY.zip`).
-   - **Simpler/idempotent:** re-download `pubinfo_daily_<Day>.zip` (~800 MB) nightly and truncate-and-reload; pull the weekly session zip when statute tables are needed.
-4. **Markdown conversion (for downstream LLM consumption):** parse bill version XML from `.lob` files → strip to text/markdown, one `.md` per bill version, with frontmatter from `BILL_TBL`/`BILL_VERSION_TBL` (bill ID, session, version date, status, authors).
+Implement one landing script at `src/ingest/land_raw.py`; run it as a Databricks Job task before the Lakeflow pipeline task in `resources/legislation.job.yml`. Do not use GitHub Actions or Airflow for this project.
+
+1. **Bootstrap schema:** download `pubinfo_load.zip`; use `capublic.sql` as the authoritative schema (port to Delta types as needed — types are simple: varchar, date, LOB pointers).
+2. **Initial load:** download `pubinfo_2025.zip` (current session, ~930 MB) and any needed historical session zips. Unzip into a Unity Catalog volume raw zone; keep the original zip, extracted `.dat` files, `.lob` files, and a manifest with source URL, `Last-Modified`, `Content-Length`, fetch time, and run mode.
+3. **Nightly current-session refresh:** after 21:30 PT, download that day's `pubinfo_daily_<Day>.zip` (~800 MB). Replace only the current-session non-code tables listed above from this snapshot. Keep code/statute tables from the latest weekly `pubinfo_YYYY.zip`.
+4. **Weekly code/statute refresh:** after the Sunday session zip is posted, download `pubinfo_2025.zip` and refresh all current-session tables, including code/statute tables. Historical session zips are frozen and should be loaded once unless backfill is explicitly requested.
+5. **Bronze loading:** Lakeflow reads the landed `.dat` and `.lob` files into bronze tables. Preserve LOB XML/text as source data; do not convert bill text to Markdown in ingestion.
 
 ## 5. Key Notes
 
@@ -66,6 +67,7 @@ Note: law/code tables appear only in the weekly session zip, not the `pubinfo_da
 - Bill text XML uses Legislative Counsel's schema (caml namespace); strikeout/italic amendment markup is encoded in tags and matters for "as amended" readings.
 - Pre-1999 data exists in these archives; the modern leginfo website only covers 1999+ (older measures live at the legacy leginfo.ca.gov archive). These zips are the primary official bulk source for older sessions.
 - Loader scripts are samples only; treat as documentation, not production tooling.
+- Markdown conversion, if needed for downstream search or review, belongs in a downstream transform/publish step after the raw XML has been preserved.
 
 ## 6. Alternatives Considered
 
@@ -77,9 +79,9 @@ Note: law/code tables appear only in the weekly session zip, not the `pubinfo_da
 
 | Criterion | Status |
 |---|---|
-| `.md` files (for LLM consumption) exist and are reviewable | This file. It provides everything needed to reason about and operate on the dataset: source URL, file inventory, schema, formats, ingestion steps. |
+| Technical `.md` reference exists and is reviewable | This file. It provides everything needed to reason about and operate on the dataset: source URL, file inventory, schema, formats, ingestion steps. |
 | Human-audience summary exists and is reviewable | `ca-leginfo-summary.md` (companion file). |
-| Bulk download executed | **Not done here** — requires a machine with outbound network access, and the session zip is ~930 MB. The pipeline in section 4 is ready to run. |
+| Bulk download executed | **Not done here** — requires Databricks job execution with outbound network access, and the session zip is ~930 MB. The pipeline in section 4 is ready to implement in the bundle job. |
 
 ## 8. Verification Sources
 
