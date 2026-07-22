@@ -166,9 +166,16 @@ databricks schemas create silver caldata_legislation_tracker
 databricks schemas create gold   caldata_legislation_tracker
 ```
 
+Then create the raw landing volume the `land_raw` job task downloads into
+(`/Volumes/caldata_legislation_tracker/bronze/raw`):
+
+```bash
+databricks volumes create caldata_legislation_tracker bronze raw MANAGED
+```
+
 The bundle points at this catalog via the `catalog` variable in `databricks.yml` (default
-`caldata_legislation_tracker`) but does not own it; the catalog, schemas, and grants are the
-natural contents of a future Terraform IaC layer.
+`caldata_legislation_tracker`) but does not own it; the catalog, schemas, volume, and grants are
+the natural contents of a future Terraform IaC layer.
 
 ---
 

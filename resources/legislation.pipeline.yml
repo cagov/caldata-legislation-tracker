@@ -17,9 +17,14 @@ resources:
       # Glob includes must be directory-recursive (`**`); a `*.sql` suffix filter is
       # not supported. Lakeflow loads .sql/.py source files and ignores others
       # (e.g. the placeholder README.md files).
+      #
+      # Bronze source is scoped to `src/ingest/bronze/` so it excludes
+      # `src/ingest/land_raw.py`: that landing script is a Job pre-task, not
+      # pipeline source, and Lakeflow would otherwise import and execute it
+      # (downloading ~1 GB) during graph analysis.
       libraries:
         - glob:
-            include: ../src/ingest/**
+            include: ../src/ingest/bronze/**
         - glob:
             include: ../src/transform/**
         - glob:

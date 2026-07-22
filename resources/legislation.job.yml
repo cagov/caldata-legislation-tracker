@@ -1,14 +1,42 @@
-# Job that orchestrates the pipeline. Schedulable wrapper around the Lakeflow
-# pipeline; a future `land_raw` task (download the CA leginfo public dump into a
-# Unity Catalog volume) will run before the pipeline task once ingestion is built.
+# Job that orchestrates ingestion + the pipeline. The `land_raw` task downloads
+# the CA leginfo public bulk dump into the Unity Catalog raw volume, then the
+# pipeline task builds bronze/silver/gold from what it landed.
 resources:
   jobs:
     legislation_job:
       name: legislation_job
       tasks:
+        - task_key: land_raw
+          spark_python_task:
+            python_file: ../src/ingest/land_raw.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog}"
+              - "--schema"
+              - bronze
+              - "--volume"
+              - raw
+              # Loader kit (schema + sample loaders) and the current 2025–2026
+              # session zip (~930 MB). Historical session backfill is deferred.
+              - "--files"
+              - pubinfo_load.zip,pubinfo_2025.zip
+              - "--run-mode"
+              - initial
+          # Serverless: a spark_python_task needs an environment; land_raw.py is
+          # stdlib-only so the spec declares no dependencies.
+          environment_key: default
+
         - task_key: run_pipeline
+          depends_on:
+            - task_key: land_raw
           pipeline_task:
             pipeline_id: ${resources.pipelines.legislation_pipeline.id}
+
+      environments:
+        - environment_key: default
+          spec:
+            client: "3"
+
       # Add a schedule when the pipeline is ready, e.g.:
       # trigger:
       #   periodic:
