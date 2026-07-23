@@ -44,3 +44,9 @@ repos:
         types: [sql]
         require_serial: true
         entry: uv run sqlfluff fix --show-lint-violations --nocolor --disable-progress-bar
+      - id: check-schema-literals
+        name: check hardcoded bronze/silver/gold schema literals
+        description: "See docs/architecture.md — schema names must be parameterized, not literal"
+        language: system
+        types_or: [python, sql]
+        entry: uv run python scripts/check_schema_literals.py

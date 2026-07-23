@@ -16,6 +16,13 @@ variables:
     # Reuse the workspace's auto-provisioned managed catalog (named after the
     # workspace) rather than creating a separate one — it already has managed
     # storage, so it avoids the Default Storage catalog-creation limitation.
+    #
+    # TODO (HUMANS): this catalog is currently doing double duty as both dev
+    # and (a not-yet-real) prod — see docs/architecture.md's "Current state
+    # vs. target state" section. A real prod catalog requires an account admin
+    # (CREATE CATALOG is a metastore-level privilege regular workspace users
+    # don't have here) — until that exists, dev and prod both resolve to this
+    # same catalog, with only schema-name prefixing distinguishing them.
     default: caldata_legislation_tracker
 
 targets:

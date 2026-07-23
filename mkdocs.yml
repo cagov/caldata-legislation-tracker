@@ -18,4 +18,5 @@ markdown_extensions:
 
 nav:
   - Introduction: index.md
+  - Architecture: architecture.md
   - Setup: setup.md

@@ -22,6 +22,7 @@ To that end, lean toward using these parts of the databricks stack.
 - **Data Asset Bundles** for IaC
 - **Unity Catalog** for governance (use this to its fullest so we can test it)
 - **Lakeflow Jobs and Lakeflow Spark Declarative Pipelines** for modular, medallion-style transformations (bronze → silver → gold)
+- **`docs/architecture.md` is the source of truth for the raw-vs-medallion data model and per-developer/prod schema isolation. Read it before writing any schema or catalog name into a `.sql` or `.py` file** — schema names are parameterized via bundle resources/pipeline `configuration:`, never hardcoded literals, with one documented exception (the shared raw landing volume).
 - **Semantic Layer** via Unity Catalog Metric Views and Genie — note that Metric Views and Genie Spaces are not yet native DAB resource types, so they require SDK scripts or MCP provisioning outside the bundle (known gap)
 - **Inline SQL `COMMENT` clauses** for data documentation — declared in pipeline `.sql` files, stored in Unity Catalog, and consumed by Genie. Document gold layer always; bronze when raw field names are cryptic; silver is optional. Comments do not inherit across layers — each table must be documented explicitly.
 Finally, use components that are building blocks for agent-data interfaces (e.g. the databricks-ai-devkit).
@@ -75,5 +76,13 @@ uv run pytest -k <test_name>     # single test
 A series of decisions that should be added to this doc once a convention is decided:
 - Deployment: Databricks asset bundles? CLI workspace?
 - Testing: local only? there are also some databricks cloud options it seems
-- Architecture. We should probably write out the architecture somewhere. (e.g medallion, roles based permissions, etc. )
 - Do we put linting conventions here, or do we rely on traditional linters? (I think the latter, b/c the bot can infer those from the repo?)
+- Daily/incremental scheduled loads (pubinfo_daily_<Day>.zip, cron trigger) — sketched 2026-07-23,
+  not designed in detail. Blocked on the same two things as above (no real prod target, and the
+  `land_raw` network-egress issue in `ca-leginfo-bulk-download.md` §9) plus a real design question:
+  `bronze` tables likely need to become `MATERIALIZED VIEW` instead of `STREAMING TABLE`, since
+  each day's zip is a full current-session snapshot (full replace), not an incremental delta, and
+  streaming-table checkpoint semantics don't match that.
+- `scripts/bronze_column_comments.sql` (column-level bronze comments) is applied by hand — not
+  wired into any job/pipeline yet. Needs a real task (can't live in the Lakeflow pipeline itself;
+  DLT only accepts CREATE MATERIALIZED VIEW/STREAMING TABLE/APPLY CHANGES INTO/SET, confirmed live).

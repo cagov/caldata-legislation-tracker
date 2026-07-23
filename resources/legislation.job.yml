@@ -1,15 +1,47 @@
-# Job that orchestrates the pipeline. Schedulable wrapper around the Lakeflow
-# pipeline; a future `land_raw` task (download the CA leginfo public dump into a
-# Unity Catalog volume) will run before the pipeline task once ingestion is built.
+# Job that orchestrates ingestion + the pipeline. `land_raw` downloads the CA
+# leginfo bulk zip, preserves it in the fixed shared raw volume, and stages
+# per-table Parquet into the environment-scoped bronze schema (see
+# jobs/land_raw.py and docs/architecture.md); `run_pipeline` then materializes
+# bronze/silver/gold via Lakeflow. Both run on serverless — no cluster spec —
+# but a spark_python_task (unlike notebook/pipeline tasks) must still name a
+# serverless environment explicitly, which is where land_raw.py's non-default
+# deps (pyarrow, requests) are declared.
+#
+# --bronze-schema/--parsed-volume are resolved from bundle resources, never
+# hardcoded — see docs/architecture.md.
+#
+# v1 is a one-shot manual run (current-session bill/reference tables only, no
+# schedule yet) — see ca-leginfo-bulk-download.md for the daily/weekly cadence
+# planned for a follow-up.
 resources:
   jobs:
     legislation_job:
       name: legislation_job
       tasks:
+        - task_key: land_raw
+          environment_key: land_raw
+          spark_python_task:
+            python_file: ../jobs/land_raw.py
+            parameters:
+              - "--catalog"
+              - ${var.catalog}
+              - "--bronze-schema"
+              - ${resources.schemas.bronze.name}
+              - "--parsed-volume"
+              - ${resources.volumes.parsed_raw.name}
         - task_key: run_pipeline
+          depends_on:
+            - task_key: land_raw
           pipeline_task:
             pipeline_id: ${resources.pipelines.legislation_pipeline.id}
-      # Add a schedule when the pipeline is ready, e.g.:
+      environments:
+        - environment_key: land_raw
+          spec:
+            client: "1"
+            dependencies:
+              - pyarrow
+              - requests
+      # Add a schedule once the daily/weekly cadence split is implemented, e.g.:
       # trigger:
       #   periodic:
       #     interval: 1
