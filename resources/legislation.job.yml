@@ -17,11 +17,13 @@ resources:
               - "--volume"
               - raw
               # Loader kit (schema + sample loaders) and the current 2025–2026
-              # session zip (~930 MB). Historical session backfill is deferred.
+              # session zip (~1.1 GB). Historical session backfill is deferred.
               - "--files"
               - pubinfo_load.zip,pubinfo_2025.zip
               - "--run-mode"
               - initial
+          # land_raw only lands the zips; the bronze pipeline unzips them in-memory
+          # (extracting ~200k small .lob files onto the FUSE volume is far too slow).
           # Serverless: a spark_python_task needs an environment; land_raw.py is
           # stdlib-only so the spec declares no dependencies.
           environment_key: default

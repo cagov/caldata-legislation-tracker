@@ -14,6 +14,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pre-commit>=4.2.0",
+    "pytest>=9.1.1",
     "ruff>=0.11",
     "sqlfluff>=3.4.1",
 ]

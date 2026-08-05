@@ -38,3 +38,4 @@ node_modules/
 # Source data must never be committed (bulk CA leginfo exports)
 pubinfo*/
 **/*.lob
+sample/*.zip

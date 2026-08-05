@@ -2,13 +2,16 @@
 
 Runs as the `land_raw` Job task before the Lakeflow pipeline (see
 `resources/legislation.job.yml`). It streams the official public zips from
-downloads.leginfo.legislature.ca.gov straight into a UC volume, records a
-manifest for provenance, and (by default) extracts each zip alongside the
-original so bronze can read the `.dat`/`.lob` files.
+downloads.leginfo.legislature.ca.gov straight into a UC volume and records a
+manifest for provenance.
 
-Intentionally stdlib-only (urllib/zipfile/hashlib) so the serverless task needs
-no extra environment dependencies. See `ca-leginfo-bulk-download.md` for the
-dataset reference this implements.
+It deliberately does NOT extract the zips: the session zip explodes into ~200k
+tiny `.lob` files and writing those onto the FUSE-mounted volume is pathologically
+slow. Unzipping happens in the bronze pipeline instead, in-memory and parallel
+(see `bronze/leginfo_bronze.py` and `ca-leginfo-bulk-download.md` §5).
+
+Intentionally stdlib-only (urllib/hashlib) so the serverless task needs no extra
+environment dependencies.
 """
 
 from __future__ import annotations
@@ -16,9 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import shutil
 import sys
-import zipfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,9 +43,6 @@ class FileResult:
     bytes_downloaded: int
     sha256: str
     zip_path: str
-    extracted: bool
-    extracted_file_count: int | None
-    extract_dir: str | None
 
 
 def _utc_now_stamp() -> str:
@@ -84,34 +82,12 @@ def download(url: str, dest: Path) -> FileResult:
         bytes_downloaded=bytes_downloaded,
         sha256=sha256.hexdigest(),
         zip_path=str(dest),
-        extracted=False,
-        extracted_file_count=None,
-        extract_dir=None,
     )
 
 
-def extract(zip_path: Path, dest_dir: Path) -> int:
-    """Extract `zip_path` into a fresh `dest_dir`, returning the member count."""
-    if dest_dir.exists():
-        # Re-runs land the current export; stale extracts must not linger.
-        shutil.rmtree(dest_dir)
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_path) as archive:
-        members = archive.namelist()
-        archive.extractall(dest_dir)
-    return len(members)
-
-
-def land(
-    files: list[str],
-    base_url: str,
-    volume_root: Path,
-    run_mode: str,
-    do_extract: bool,
-) -> Path:
-    """Download and (optionally) extract each file, then write the run manifest."""
+def land(files: list[str], base_url: str, volume_root: Path, run_mode: str) -> Path:
+    """Download each file into the raw zone, then write the run manifest."""
     zips_dir = volume_root / "zips"
-    extracted_root = volume_root / "extracted"
     manifests_dir = volume_root / "manifests"
 
     fetched_at = datetime.now(timezone.utc).isoformat()
@@ -121,16 +97,6 @@ def land(
         print(f"Downloading {url}", flush=True)
         result = download(url, zips_dir / filename)
         print(f"  {result.bytes_downloaded:,} bytes  sha256={result.sha256}", flush=True)
-
-        if do_extract:
-            extract_dir = extracted_root / Path(filename).stem
-            print(f"  Extracting to {extract_dir}", flush=True)
-            count = extract(zips_dir / filename, extract_dir)
-            result.extracted = True
-            result.extracted_file_count = count
-            result.extract_dir = str(extract_dir)
-            print(f"  Extracted {count} files", flush=True)
-
         results.append(result)
 
     manifest = {
@@ -162,12 +128,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default="initial",
         help="Provenance label recorded in the manifest (e.g. initial, daily, weekly).",
     )
-    parser.add_argument(
-        "--no-extract",
-        dest="extract",
-        action="store_false",
-        help="Land the zips only; skip extracting the .dat/.lob members.",
-    )
     return parser.parse_args(argv)
 
 
@@ -178,13 +138,7 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("--files must name at least one zip")
 
     volume_root = Path(f"/Volumes/{args.catalog}/{args.schema}/{args.volume}")
-    land(
-        files=files,
-        base_url=args.base_url,
-        volume_root=volume_root,
-        run_mode=args.run_mode,
-        do_extract=args.extract,
-    )
+    land(files=files, base_url=args.base_url, volume_root=volume_root, run_mode=args.run_mode)
     return 0
 
 
