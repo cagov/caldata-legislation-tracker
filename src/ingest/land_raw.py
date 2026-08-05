@@ -60,7 +60,10 @@ def download(url: str, dest: Path) -> FileResult:
     bytes_downloaded = 0
 
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with urlopen(request) as response, dest.open("wb") as out:
+    # Download to a temp file and atomically rename on success, so a cancelled or
+    # failed fetch never leaves a truncated zip in place of a good one.
+    tmp = dest.with_name(dest.name + ".part")
+    with urlopen(request) as response, tmp.open("wb") as out:
         content_length = response.headers.get("Content-Length")
         last_modified = response.headers.get("Last-Modified")
         expected = int(content_length) if content_length is not None else None
@@ -70,9 +73,11 @@ def download(url: str, dest: Path) -> FileResult:
             bytes_downloaded += len(chunk)
 
     if expected is not None and bytes_downloaded != expected:
+        tmp.unlink(missing_ok=True)
         raise OSError(
             f"{url}: downloaded {bytes_downloaded} bytes but Content-Length was {expected}"
         )
+    tmp.replace(dest)
 
     return FileResult(
         filename=dest.name,
@@ -131,16 +136,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> None:
     args = parse_args(sys.argv[1:] if argv is None else argv)
     files = [f.strip() for f in args.files.split(",") if f.strip()]
     if not files:
-        raise SystemExit("--files must name at least one zip")
+        raise ValueError("--files must name at least one zip")
 
     volume_root = Path(f"/Volumes/{args.catalog}/{args.schema}/{args.volume}")
     land(files=files, base_url=args.base_url, volume_root=volume_root, run_mode=args.run_mode)
-    return 0
 
 
+# Databricks runs `spark_python_task` under IPython, which reports ANY SystemExit
+# (even code 0) as a task failure — so return normally rather than raising SystemExit.
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

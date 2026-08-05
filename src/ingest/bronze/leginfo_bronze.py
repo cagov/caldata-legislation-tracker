@@ -91,37 +91,55 @@ def decode_text(raw: bytes) -> str:
     return raw.decode(_ENCODING, "replace")
 
 
-def _lob_reader(zip_path: str):
-    """Executor worker: inflate assigned `.lob` entries into (name, text) rows."""
+def _lob_frames(zip_path: str):
+    """mapInPandas worker: inflate a partition's assigned `.lob` entries.
 
-    def read(names):
+    Uses the DataFrame `mapInPandas` API (not RDDs) because serverless Lakeflow
+    blocks the low-level `sparkContext` RDD methods. The zip is opened once per
+    partition and only the assigned entries are read.
+    """
+
+    def transform(batches):
+        import pandas as pd
+
         with zipfile.ZipFile(zip_path) as z:
-            for name in names:
-                yield (name, decode_text(z.read(name)))
+            for batch in batches:
+                names = batch["lob_name"].tolist()
+                yield pd.DataFrame(
+                    {"lob_name": names, "content": [decode_text(z.read(n)) for n in names]}
+                )
 
-    return read
+    return transform
 
 
-def _dat_reader(zip_path: str, entry: str, ncols: int):
-    """Executor worker: inflate one `.dat` entry into fixed-width string rows.
+def _dat_frames(zip_path: str, entry: str, columns: list[str]):
+    """mapInPandas worker: inflate one `.dat` entry into fixed-width string rows.
 
     Rows whose field count doesn't match the schema are padded/truncated and their
     raw line is kept in a trailing `_rescued` column rather than dropped.
     """
+    ncols = len(columns)
+    out_columns = [*columns, "_rescued"]
 
-    def read(_):
+    def transform(batches):
+        import pandas as pd
+
+        for _ in batches:  # drain the single-row trigger frame
+            pass
         with zipfile.ZipFile(zip_path) as z:
             text = decode_text(z.read(entry))
+        rows = []
         for line in text.split("\n"):
             if not line:
                 continue
             values = parse_dat_line(line)
             if len(values) == ncols:
-                yield (*values, None)
+                rows.append([*values, None])
             else:
-                yield (*(values + [None] * ncols)[:ncols], line)
+                rows.append([*(values + [None] * ncols)[:ncols], line])
+        yield pd.DataFrame(rows, columns=out_columns)
 
-    return read
+    return transform
 
 
 # --- Lakeflow pipeline registration (skipped off-cluster) ------------------------
@@ -152,11 +170,11 @@ if _HAS_PIPELINES and "spark" in globals():
     def lob_raw():
         names = [e for e in _entries if is_lob(e)]
         slices = max(8, min(1024, len(names) // 200 or 1))
-        rows = spark.sparkContext.parallelize(names, slices).mapPartitions(  # noqa: F821
-            _lob_reader(_source_zip)
-        )
+        names_df = spark.createDataFrame(  # noqa: F821
+            [(n,) for n in names], "lob_name string"
+        ).repartition(slices)
         return (
-            spark.createDataFrame(rows, "lob_name string, content string")  # noqa: F821
+            names_df.mapInPandas(_lob_frames(_source_zip), "lob_name string, content string")
             .withColumn("source_zip", F.lit(_source_zip))
             .withColumn("_ingested_at", F.current_timestamp())
         )
@@ -172,11 +190,9 @@ if _HAS_PIPELINES and "spark" in globals():
             comment=f"Raw tab-delimited rows from {entry}.",
         )
         def _dat():
-            rows = spark.sparkContext.parallelize([entry], 1).mapPartitions(  # noqa: F821
-                _dat_reader(_source_zip, entry, len(columns))
-            )
+            trigger = spark.createDataFrame([(entry,)], "entry string")  # noqa: F821
             return (
-                spark.createDataFrame(rows, schema)  # noqa: F821
+                trigger.mapInPandas(_dat_frames(_source_zip, entry, columns), schema)
                 .withColumn("source_zip", F.lit(_source_zip))
                 .withColumn("_ingested_at", F.current_timestamp())
             )
