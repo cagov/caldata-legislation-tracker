@@ -36,14 +36,19 @@ import json
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-import requests
 
 SOURCE_BASE_URL = "https://downloads.leginfo.legislature.ca.gov"
 DEFAULT_ZIP_NAME = "pubinfo_2025.zip"
 DOWNLOAD_CHUNK_BYTES = 1 << 20  # 1 MiB
+DOWNLOAD_TIMEOUT_SECONDS = 300
+# Identify the fetcher to the public source rather than sending urllib's default.
+USER_AGENT = (
+    "caldata-legislation-tracker/land_raw (+https://github.com/cagov/caldata-legislation-tracker)"
+)
 BATCH_ROWS = (
     5_000  # rows buffered per Parquet part file; bounds peak memory regardless of table size
 )
@@ -274,22 +279,44 @@ TABLES: dict[str, dict] = {
 
 
 def download_zip(zip_name: str, dest_dir: Path) -> tuple[Path, dict]:
-    """Stream the zip to local disk; return its path and HTTP metadata for the manifest."""
+    """Stream the zip to local disk; return its path and HTTP metadata for the manifest.
+
+    Deliberately stdlib `urllib`, not `requests`. `requests` verifies TLS against
+    the `certifi` bundle vendored into whichever version is installed — the
+    Databricks runtime image pins certifi 2022.12.07, which predates the Sectigo
+    root that anchors leginfo's certificate chain, so it rejects the connection
+    with a misleading "self-signed certificate in certificate chain". `urllib`
+    inherits the OS trust store, which carries that root. See
+    ca-leginfo-bulk-download.md §9.
+    """
     url = f"{SOURCE_BASE_URL}/{zip_name}"
     dest = dest_dir / zip_name
-    with requests.get(url, stream=True, timeout=300) as response:
-        response.raise_for_status()
-        headers = response.headers
-        sha256 = hashlib.sha256()
-        with dest.open("wb") as f:
-            for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_BYTES):
-                f.write(chunk)
-                sha256.update(chunk)
+    # Stream to a temp name and rename only on success, so an interrupted fetch
+    # can never leave a truncated zip standing in for a complete one.
+    tmp = dest.with_name(dest.name + ".part")
+    sha256 = hashlib.sha256()
+    downloaded = 0
+
+    request = Request(url, headers={"User-Agent": USER_AGENT})
+    with urlopen(request, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response, tmp.open("wb") as f:
+        last_modified = response.headers.get("Last-Modified")
+        content_length = response.headers.get("Content-Length")
+        while chunk := response.read(DOWNLOAD_CHUNK_BYTES):
+            f.write(chunk)
+            sha256.update(chunk)
+            downloaded += len(chunk)
+
+    expected = int(content_length) if content_length is not None else None
+    if expected is not None and downloaded != expected:
+        tmp.unlink(missing_ok=True)
+        raise OSError(f"{url}: downloaded {downloaded} bytes but Content-Length was {expected}")
+    tmp.replace(dest)
+
     return dest, {
         "fetch_mode": "http",
         "source_url": url,
-        "last_modified": headers.get("Last-Modified"),
-        "content_length": headers.get("Content-Length"),
+        "last_modified": last_modified,
+        "content_length": content_length,
         "sha256": sha256.hexdigest(),
     }
 
@@ -297,9 +324,9 @@ def download_zip(zip_name: str, dest_dir: Path) -> tuple[Path, dict]:
 def use_local_zip(local_path: Path) -> tuple[Path, dict]:
     """Use an already-downloaded zip instead of fetching over HTTP.
 
-    Escape hatch for when outbound internet access from Databricks compute is
-    blocked (e.g. a TLS-inspecting network egress proxy with no trusted CA
-    configured) but a developer's own machine can reach the source directly.
+    Escape hatch for when Databricks compute can't reach the source but a
+    developer's own machine can. Also useful for re-parsing a known zip without
+    re-downloading 1.2 GB.
     """
     sha256 = hashlib.sha256()
     with local_path.open("rb") as f:

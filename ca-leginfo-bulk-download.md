@@ -74,7 +74,7 @@ Materializing that many files anywhere — a Unity Catalog volume, or an agent/l
 Implement one landing script at **`jobs/land_raw.py`** (not `src/ingest/` — that directory's glob (`resources/legislation.pipeline.yml`) loads every file under it as Lakeflow pipeline source, and this is a single-node job task, not pipeline code). Run it as a Databricks Job task before the Lakeflow pipeline task in `resources/legislation.job.yml`, on serverless job compute (no cluster — this is sequential single-archive work, not something a cluster helps with). Do not use GitHub Actions or Airflow for this project.
 
 1. **Bootstrap schema:** `capublic.sql` (from `pubinfo_load.zip`) is the authoritative source schema; `jobs/land_raw.py` hardcodes the column order for each in-scope table directly from the `*_tbl.sql` loader files (types are simple: varchar, date, LOB pointers — kept as raw `STRING` in bronze, see below).
-2. **Download + preserve raw:** stream-download the target zip (`requests`, chunked, never buffered whole in memory) to local disk, then copy the original `.zip` itself — one file — plus a manifest (source URL, `Last-Modified`, `Content-Length`, sha256, fetch time, run mode) to the Unity Catalog raw volume (`resources/legislation.catalog.yml` declares the `bronze` schema and a `raw` managed volume as bundle resources). **Never extract the exploded `.dat`/`.lob` files to the volume** — that's exactly the small-files problem this design avoids.
+2. **Download + preserve raw:** stream-download the target zip (stdlib `urllib`, chunked, never buffered whole in memory — see §9 for why not `requests`) to local disk, then copy the original `.zip` itself — one file — plus a manifest (source URL, `Last-Modified`, `Content-Length`, sha256, fetch time, run mode) to the Unity Catalog raw volume (`resources/legislation.catalog.yml` declares the `bronze` schema and a `raw` managed volume as bundle resources). **Never extract the exploded `.dat`/`.lob` files to the volume** — that's exactly the small-files problem this design avoids.
 3. **Parse in-process, batched:** open the zip once with `zipfile.ZipFile` (loads only the central directory — filename/offset metadata, not LOB content). For each in-scope `.dat` file, iterate rows; for LOB-backed tables (`BILL_VERSION_TBL`, `BILL_ANALYSIS_TBL`, `VETO_MESSAGE_TBL`) resolve the row's LOB filename via `zf.open()`'s random access and inline the decoded text as that row's column value. Buffer ~5,000 rows at a time and flush each batch to its own Parquet part file — peak memory is one batch, independent of table size, so the same code handles a 124-row table today and a 162K-row one later without change. Result: one folder of a handful of Parquet files per table (~14 folders, dozens of files total) instead of ~35,600 loose LOBs.
 4. **Bronze loading:** Lakeflow (`src/ingest/*.sql`) reads the landed Parquet via `read_files()` into one `STREAMING TABLE` per source table — trivial now, since it's reading dozens of files, not tens of thousands. LOB text lands as a raw, unparsed `STRING` column (CAML-XML); do not convert bill text to Markdown or parse the XML at bronze — that belongs in silver/downstream.
 5. **Nightly current-session refresh (follow-up, not v1):** after 21:30 PT, download that day's `pubinfo_daily_<Day>.zip` (~800 MB) and re-run the same script against the daily-scoped tables. Keep code/statute tables from the latest weekly `pubinfo_YYYY.zip`.
@@ -110,25 +110,63 @@ Implement one landing script at **`jobs/land_raw.py`** (not `src/ingest/` — th
 - **Direct inspection of a real, fully-downloaded `pubinfo_2025.zip`** (2026-07-22): exact file counts (§3.1), and the `BILL_ANALYSIS_TBL` binary-`.docx` LOB finding (§2, §5). Neither the live directory index nor `pubinfo_Readme.pdf` documents per-record file counts or LOB content-type — these were only discoverable by unzipping the archive and sampling its contents, which is how they were found here. Treat this doc's file-count and LOB-format claims as more authoritative than the provider's own documentation, which is silent on both.
 - Statements not directly verifiable from any of the above (e.g., full caml XML tag semantics) are based on documented characteristics of the dataset and should be spot-checked against an actual `.lob` file during implementation.
 
-## 9. Known Issue: `land_raw` job task can't reach the source (2026-07-23)
+## 9. Resolved: `SSLCertVerificationError` on download was a stale certifi bundle (2026-09-04)
 
-Running `jobs/land_raw.py` as the `land_raw` Databricks Job task fails with
+**Symptom.** Running `jobs/land_raw.py` as the `land_raw` Databricks Job task
+failed within ~40s with
 `SSLCertVerificationError: ... self-signed certificate in certificate chain`
-when it tries to `requests.get()` `downloads.leginfo.legislature.ca.gov` from
-serverless job compute. This means the workspace's outbound network path goes
-through a TLS-inspecting proxy/firewall whose root CA isn't in the job
-environment's trust store — a network/security-policy question for whoever
-manages this workspace's egress rules, **not** something to fix by disabling
-certificate verification in code.
+while fetching `downloads.leginfo.legislature.ca.gov`.
 
-**Until that's resolved**, `jobs/land_raw.py --local-zip <path>` supports
-running the download-and-parse step on a developer's own machine (which can
-reach the public internet directly) instead of on Databricks compute, with
-`--raw-root`/`--parsed-root` overrides to stage output locally. The v1 bill
-tables were loaded this way on 2026-07-23: download locally, run
-`land_raw.py --local-zip ... --raw-root <local dir> --parsed-root <local dir>`,
-then `databricks fs cp -r` each local directory to its real Unity Catalog
-volume path, then trigger the Lakeflow pipeline directly
-(`databricks pipelines start-update <pipeline-id>`) since the job's `land_raw`
-task would just fail again on the network block. This is a one-time-per-load
-manual workaround, not a permanent replacement for the job task.
+**This was originally diagnosed as a TLS-inspecting egress proxy. That was
+wrong** — nothing intercepts this workspace's traffic. The server presents the
+genuine public leginfo certificate, and `openssl s_client` from serverless
+reports `Verify return code: 0 (ok)`.
+
+**Actual cause: which trust store the HTTP client consults.** leginfo's chain
+anchors at a root that the runtime's vendored certifi bundle predates:
+
+```
+0 s:CN = *.leginfo.legislature.ca.gov
+  i:Entrust DV TLS Issuing RSA CA 2
+1 s:Entrust DV TLS Issuing RSA CA 2
+  i:Sectigo Public Server Authentication Root R46   ← self-signed root
+```
+
+Verified on serverless compute (2026-09-04):
+
+| Client | Trust store consulted | Has the Sectigo root? | Result |
+| --- | --- | --- | --- |
+| stdlib `urllib` | OS store, `/usr/lib/ssl/certs` (122 roots) | yes | `200`, 1,267,605,195 bytes |
+| `requests` | vendored `certifi` 2022.12.07 (138 roots, **no Sectigo roots at all**) | no | `CERTIFICATE_VERIFY_FAILED` |
+
+`requests` ignores the OS trust store by design, defaulting `verify` to
+`certifi.where()`; `urllib` passes no CA path and so inherits OpenSSL's
+compiled-in default, which is the OS store. Handing `requests` that one Sectigo
+root explicitly (`verify=/usr/lib/ssl/certs/Sectigo_Public_Server_Authentication_Root_R46.pem`)
+also succeeds, confirming the missing anchor was the only fault. OpenSSL's
+"self-signed certificate in certificate chain" wording describes *any*
+untrusted terminal root — it is not evidence of interception, which is what made
+this look like an infrastructure problem for six weeks.
+
+**Fix (applied).** `download_zip()` uses stdlib `urllib`, and `requests` is
+dropped as a dependency (`pyproject.toml`, and the `land_raw` environment spec
+in `resources/legislation.job.yml`). Do **not** "fix" this class of error by
+disabling certificate verification. Two rejected alternatives, for the record:
+pinning a newer `certifi` leaves trust dependent on a transitive package
+version, and the failing traceback showed the *preinstalled* `requests` 2.28.1
+being used despite the env spec declaring the dependency; hardcoding
+`verify="/usr/lib/ssl/certs"` bakes a DBR image path into the job.
+
+**Note on `ssl.get_default_verify_paths()`** on this image: `openssl_cafile`
+(`/usr/lib/ssl/cert.pem`) **does not exist** — only `openssl_capath`
+(`/usr/lib/ssl/certs`) does. Any fix that passes the reported `cafile` to a
+client will fail with `invalid path`.
+
+**Local escape hatch (still available, no longer required).**
+`jobs/land_raw.py --local-zip <path>` with `--raw-root`/`--parsed-root`
+overrides runs download-and-parse on a developer's machine; `databricks fs cp -r`
+each local directory to its Unity Catalog volume path, then trigger the pipeline
+(`databricks bundle run legislation_pipeline -t dev`). The v1 bill tables were
+loaded this way on 2026-07-23, when the job task was believed to be blocked.
+Useful now mainly for re-parsing an already-downloaded zip without refetching
+1.2 GB.
