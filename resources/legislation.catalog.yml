@@ -1,0 +1,33 @@
+# Medallion schemas + the per-developer Parquet staging volume. See
+# docs/architecture.md for the full model: these are environment-scoped
+# (auto-prefixed per developer under dev, single canonical copy under prod,
+# bound to the schemas an admin already created — see docs/setup.md). This
+# does NOT declare the raw zip-landing volume (`bronze.raw`): that one is
+# deliberately fixed and shared across every environment, never bundle-managed,
+# referenced only by a hardcoded literal in jobs/land_raw.py.
+resources:
+  schemas:
+    bronze:
+      catalog_name: ${var.catalog}
+      name: bronze
+      comment: Medallion bronze layer — parsed/typed tables over the landed raw data.
+    silver:
+      catalog_name: ${var.catalog}
+      name: silver
+      comment: Cleaned, typed, validated tables.
+    gold:
+      catalog_name: ${var.catalog}
+      name: gold
+      comment: Business-level marts for analysis and reporting.
+
+  volumes:
+    parsed_raw:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.bronze.name}
+      name: parsed_raw
+      volume_type: MANAGED
+      comment: >-
+        Per-table Parquet staged by jobs/land_raw.py after joining raw .dat
+        rows to their .lob bodies. Environment-scoped (see docs/architecture.md)
+        — this is NOT the raw zip itself, which always lives in the separate,
+        never-prefixed {catalog}.bronze.raw volume.

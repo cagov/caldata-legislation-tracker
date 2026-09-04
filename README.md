@@ -46,6 +46,12 @@ transform → silver  cleaned, typed, validated tables
 publish → gold     business-level marts for analysis & reporting
 ```
 
+`bronze`/`silver`/`gold` are **environment-scoped**: a single canonical copy under `prod`, an
+isolated auto-prefixed copy per developer under `dev`. The raw downloaded source data is the one
+exception — a single shared, never-duplicated landing volume, read by every environment. See
+[docs/architecture.md](docs/architecture.md) for the full model and the rule this implies for any
+new schema/catalog reference (read it before writing one).
+
 - **`databricks.yml`** — the Asset Bundle: the project's infrastructure-as-code-lite.
 - **`resources/`** — the Lakeflow Declarative Pipeline and the orchestrating Job.
 - **`src/{ingest,transform,publish}/`** — Databricks SQL for each layer (placeholders at bootstrap).

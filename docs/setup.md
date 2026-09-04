@@ -114,9 +114,12 @@ databricks bundle run legislation_job -t dev # execute it (uses serverless compu
 databricks bundle destroy -t dev             # tear your copy back down
 ```
 
-`dev` mode prefixes every resource with your username (e.g. `[dev ian_rose] legislation_job`) and
-deploys under your own workspace user folder, so developers never collide and each can `destroy`
-their own copy independently.
+`dev` mode prefixes every bundle-declared resource with your username — not just the job/pipeline
+(e.g. `[dev ian_rose] legislation_job`), but also the `bronze`/`silver`/`gold` schemas and staging
+volume declared in `resources/legislation.catalog.yml` (e.g. `dev_ian_rose_bronze`). That schema-level
+isolation is what actually prevents developers from colliding when their pipelines write tables —
+see [Architecture](architecture.md) for the full rule and the one exception (the shared `raw`
+landing volume). Each developer can `destroy` their own copy independently.
 
 ---
 
@@ -158,7 +161,11 @@ catalog** rather than creating a new one: it avoids the Default Storage limitati
 `databricks catalogs create` CLI/API can't target Default Storage —
 [databricks/cli#4513](https://github.com/databricks/cli/issues/4513)).
 
-So there's no catalog to create — just add the medallion schemas:
+So there's no catalog to create — just add the medallion schemas. **These three are intended to
+become the single canonical `prod` schemas** once a real prod environment exists — see
+[Architecture](architecture.md#current-state-vs-target-state--read-this-part-first) for the current
+(blocked) status. Today, nothing actually deploys to them and nothing technically stops a developer
+from writing to them either — that's a tracked gap, not the design:
 
 ```bash
 databricks schemas create bronze caldata_legislation_tracker
@@ -166,9 +173,26 @@ databricks schemas create silver caldata_legislation_tracker
 databricks schemas create gold   caldata_legislation_tracker
 ```
 
-The bundle points at this catalog via the `catalog` variable in `databricks.yml` (default
-`caldata_legislation_tracker`) but does not own it; the catalog, schemas, and grants are the
-natural contents of a future Terraform IaC layer.
+The bundle points at this catalog via the `catalog` variable in `databricks.yml`. `dev` and `prod`
+currently resolve to the *same* catalog (see Architecture) — `resources/legislation.catalog.yml`
+declares `bronze`/`silver`/`gold` as managed schema resources, which is why `dev` deploys get their
+own auto-prefixed `dev_<user>_*` copies alongside these. **Once a real prod catalog/target exists**,
+deploying to it for the first time will require binding those bundle declarations to the schemas
+created above, so `bundle deploy -t prod` reconciles instead of erroring "already exists" — not
+needed yet, since no `-t prod` deploy has ever been run:
+
+```bash
+databricks bundle deployment bind resources.schemas.bronze bronze -t prod
+databricks bundle deployment bind resources.schemas.silver silver -t prod
+databricks bundle deployment bind resources.schemas.gold gold -t prod
+```
+
+The one exception is the raw landing volume (`bronze.raw`), which is never bundle-managed and never
+per-developer — see [Architecture](architecture.md#1-raw--one-copy-ever-shared-by-everyone) for why:
+
+```bash
+databricks volumes create caldata_legislation_tracker bronze raw --volume-type MANAGED
+```
 
 ---
 
@@ -187,6 +211,15 @@ can build. `USE CATALOG` is already granted; this adds read + create/modify:
 -- Simplest for a single-purpose demo workspace — everyone is a builder:
 GRANT ALL PRIVILEGES ON CATALOG caldata_legislation_tracker TO `account users`;
 ```
+
+**This is what's actually applied today** (verified via `SHOW GRANTS ON CATALOG
+caldata_legislation_tracker`, 2026-07-23) — and per
+[Architecture](architecture.md#rbac-current-gap-and-target-state), it's a known,
+tracked gap: it grants every workspace user write access to Ian's placeholder
+prod schemas, not just their own dev schema. It's tolerable only because no real
+prod deployment exists yet. Revisit this — with the tiered grant below, split
+across a real dev catalog and a locked-down prod catalog — once the blocked
+`CREATE CATALOG` TODO in `CLAUDE.md` is resolved.
 
 For tiered least-privilege instead:
 
