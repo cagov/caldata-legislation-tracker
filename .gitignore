@@ -7,6 +7,9 @@ __pycache__/
 # uv
 # (uv.lock IS committed; the virtualenv is not)
 
+# Sample data
+sample/
+
 # Databricks
 .databricks/
 *.pyc

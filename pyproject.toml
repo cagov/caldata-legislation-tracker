@@ -10,7 +10,6 @@ dependencies = [
     "databricks-sdk>=0.30",
     "mkdocs-material~=9.6",
     "pyarrow>=25.0.0",
-    "requests>=2.34.2",
 ]
 
 [dependency-groups]

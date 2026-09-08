@@ -5,7 +5,7 @@
 # bronze/silver/gold via Lakeflow. Both run on serverless — no cluster spec —
 # but a spark_python_task (unlike notebook/pipeline tasks) must still name a
 # serverless environment explicitly, which is where land_raw.py's non-default
-# deps (pyarrow, requests) are declared.
+# deps (pyarrow) are declared.
 #
 # --bronze-schema/--parsed-volume are resolved from bundle resources, never
 # hardcoded — see docs/architecture.md.
@@ -40,7 +40,6 @@ resources:
             client: "1"
             dependencies:
               - pyarrow
-              - requests
       # Add a schedule once the daily/weekly cadence split is implemented, e.g.:
       # trigger:
       #   periodic:

@@ -31,7 +31,6 @@ dependencies = [
     { name = "databricks-sdk" },
     { name = "mkdocs-material" },
     { name = "pyarrow" },
-    { name = "requests" },
 ]
 
 [package.dev-dependencies]
@@ -46,7 +45,6 @@ requires-dist = [
     { name = "databricks-sdk", specifier = ">=0.30" },
     { name = "mkdocs-material", specifier = "~=9.6" },
     { name = "pyarrow", specifier = ">=25.0.0" },
-    { name = "requests", specifier = ">=2.34.2" },
 ]
 
 [package.metadata.requires-dev]

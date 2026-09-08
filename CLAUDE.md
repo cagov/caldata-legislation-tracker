@@ -78,8 +78,9 @@ A series of decisions that should be added to this doc once a convention is deci
 - Testing: local only? there are also some databricks cloud options it seems
 - Do we put linting conventions here, or do we rely on traditional linters? (I think the latter, b/c the bot can infer those from the repo?)
 - Daily/incremental scheduled loads (pubinfo_daily_<Day>.zip, cron trigger) — sketched 2026-07-23,
-  not designed in detail. Blocked on the same two things as above (no real prod target, and the
-  `land_raw` network-egress issue in `ca-leginfo-bulk-download.md` §9) plus a real design question:
+  not designed in detail. Still blocked on no real prod target (the `land_raw` download failure is
+  resolved as of 2026-09-04 — it was a stale certifi bundle in `requests`, not network egress; see
+  `ca-leginfo-bulk-download.md` §9) plus a real design question:
   `bronze` tables likely need to become `MATERIALIZED VIEW` instead of `STREAMING TABLE`, since
   each day's zip is a full current-session snapshot (full replace), not an incremental delta, and
   streaming-table checkpoint semantics don't match that.
