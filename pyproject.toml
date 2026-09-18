@@ -23,6 +23,7 @@ dev = [
 # so uv should not try to build it.
 [tool.uv]
 package = false
+exclude-newer = "1 week"
 
 [tool.ruff]
 target-version = "py313"
