@@ -34,7 +34,7 @@ import argparse
 import hashlib
 import json
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -422,7 +422,7 @@ def write_manifest(dest_dir: Path, zip_name: str, fetch_meta: dict, tables: list
     manifest = {
         **fetch_meta,
         "zip_name": zip_name,
-        "fetch_time": datetime.now(timezone.utc).isoformat(),
+        "fetch_time": datetime.now(UTC).isoformat(),
         "tables_loaded": tables,
     }
     (dest_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
